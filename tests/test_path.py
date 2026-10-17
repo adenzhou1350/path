@@ -1229,6 +1229,22 @@ class TestInPlace:
         assert 'Lorem' not in data
         assert 'lazy dog' in data
 
+    @pytest.mark.parametrize('exc_type', [KeyboardInterrupt, SystemExit])
+    def test_base_exception_in_context(self, tmpdir, exc_type):
+        doc = self.create_reference(tmpdir)
+        streams = ()
+        try:
+            with pytest.raises(exc_type), doc.in_place(encoding='utf-8') as streams:
+                streams[1].write(self.alternate_content)
+                raise exc_type()
+        finally:
+            closed = [stream.closed for stream in streams]
+            for stream in streams:
+                stream.close()
+        assert len(closed) == 2 and all(closed)
+        assert doc.read_text(encoding='utf-8') == self.reference_content
+        assert not (doc + '.bak').exists()
+
     def test_write_mode_invalid(self, tmpdir):
         with (
             pytest.raises(ValueError),
